@@ -53,6 +53,7 @@ def goToNode(x, y, ac):
 
 def getCurrentPos():
     #returns the estimate of the robots x, y position
+    #subscribe to amcl_pose???
 
 
 def humanSearch(ac):
@@ -94,7 +95,7 @@ def humanSearch(ac):
 def guideToGoal(x, y, ac):
     #initialize goal
     goal = MoveBaseGoal()
-    goal.target_pose.header.frame_id = "map" #or whatever our map is called
+    goal.target_pose.header.frame_id = "map"
     goal.target_pose.header.stamp = rospy.Time.now()
 
     #set and send goal
