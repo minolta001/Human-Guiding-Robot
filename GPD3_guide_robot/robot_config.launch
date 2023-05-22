@@ -1,22 +1,11 @@
 <launch>
 
-	<!-- unnecessary? -->
-	<node pkg="sensor_node_pkg" type="sensor_node_type" name="sensor_node_name" output="screen">
-		<param name="sensor_param" value="param_value" />
-	</node>
+	<!-- run laster to odom pkg -->
+	<include file="$(find rf2o_laser_odometry)/launch/rf2o_laser_odometry.launch"/>
 
-	<!-- run odom related pkgs -->
-	<node pkg="odom_node_pkg" type="odom_node_type" name="odom_node" output="screen">
-		<param name="odom_param" value="param_value" />
-	</node>
-
-	<!-- run transforms -->
+	<!-- setup transforms -->
 	<!-- replace 0.08 with height of lidar above center of robot -->
 	<node pkg="tf" type="static_transform_publisher" name="base_link_to_laser" args="0 0 0.08 0 0 0 base_link laser 30" />
-
-	<!-- where is the IMU? -->
-	<node pkg="tf" type="static_transform_publisher" name="imu_broadcaster" args="0 0.06 0.02 0 0 0 base_link imu 30" />
-
 	<!-- replace 0.09 with height of center above ground -->
 	<node pkg="tf" type="static_transform_publisher" name="base_link_broadcaster" args="0 0 0.09 0 0 0 base_footprint base_link 30" />
 
@@ -27,8 +16,8 @@
 		<param name="base_footprint_frame" value="base_footprint"/>
 		<param name="freq" value="30.0"/>
 		<param name="sensor_timeout" value="1.0"/>
-		<param name="odom_used" value="false"/>
-		<param name="imu_used" value="true"/>
+		<param name="odom_used" value="true"/>
+		<param name="imu_used" value="false"/>
 		<param name="vo_used" value="false"/>
 		<param name="gps_used" value="false"/>
 		<param name="debug" value="false"/>
