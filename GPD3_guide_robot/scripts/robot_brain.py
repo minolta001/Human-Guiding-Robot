@@ -125,12 +125,15 @@ if __name__ == "__main__":
 
         #wait for action server
         ac = actionlib.SimpleActionClient("move_base", MoveBaseAction)
-        while not ac.waut_for_server(rospy.Duration.from_sec(5.0)):
+        while not ac.wait_for_server(rospy.Duration.from_sec(5.0)):
             rospy.loginfo("waiting for move_base server")
 
         #begin guiding
         xGoal, yGoal = chooseDest()
-        success = guideToGoal(xGoal, yGoal, ac)
+        #success = guideToGoal(xGoal, yGoal, ac)
+
+        #test basic navigation
+        success = goToNode(xGoal, yGoal, ac)
 
         if success:
             print("You have reached your destination!")
