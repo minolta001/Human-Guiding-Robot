@@ -10,8 +10,13 @@ import rospy
 from geometry_msgs.msg import Pose2D
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import TwistStamped
+from sensor_msgs.msg import LaserScan
 import sys
 import time
+import numpy as np
+import math
+import cv2
+import pyrealsense2 as rs
 
 from select import select
 
@@ -21,7 +26,16 @@ else:
     import termios
     import tty
 
+min_val = -np.inf  # minimum reading value from scaner
+
+depth_dist = np.inf
+x_drift = np.inf
+y_drift = np.inf
+detect_state = False    # if detect a target color, True. Else, False
+
 TwistMsg = Pose2D
+
+states = ['collide', 'follow', 'search', 'chase']
 
 class Robot(threading.Thread):
     def __init__(self, rate):
@@ -92,6 +106,168 @@ class Robot(threading.Thread):
         twist.theta = 0
         self.publisher.publish(twist_msg)
 
+# Vision using D435
+# Return depth distance toward target color
+# Return drift pixel distance toward the center
+def vision():
+    global depth_dist, x_drift, y_drift, detect_state
+
+    rospy.init_node('d435_camera_node', anonymous=True)
+    pipeline = rs.pipeline()
+    config = rs.config()
+    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 15)
+    config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 15)
+    pipeline.start(config)
+
+    try:
+        while not rospy.is_shutdown():
+            frames = pipeline.wait_for_frames()
+            color_frame = frames.get_color_frame()
+            depth_frame = frames.get_depth_frame()
+            if not color_frame or not depth_frame:
+                continue
+
+            color_image = np.asanyarray(color_frame.get_data())
+            depth_image = np.asanyarray(depth_frame.get_data())
+
+            # Convert color image to HSV color space
+            hsv_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2HSV)
+
+            # Define lower and upper bounds for yellow color
+            lower_red = np.array([20, 100, 100])
+            upper_red = np.array([40, 255, 255])
+
+            yel_mask = cv2.inRange(hsv_image, lower_red, upper_red)
+
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+            yel_mask = cv2.morphologyEx(yel_mask, cv2.MORPH_OPEN, kernel)
+            yel_mask = cv2.morphologyEx(yel_mask, cv2.MORPH_CLOSE, kernel)
+
+            # Find contours in the red mask
+            contours, _ = cv2.findContours(yel_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+             
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                if area > 100:  # Filter small contours
+
+                    detect_state = True
+
+                    (x, y), radius = cv2.minEnclosingCircle(contour)
+                    center = (int(x), int(y))
+                    radius = int(radius)
+
+                    # Get depth at the center of the circle
+                    depth = depth_image[int(y), int(x)]
+
+                    # Convert depth to meters using the depth scale
+                    depth_scale = pipeline.get_active_profile().get_device().first_depth_sensor().get_depth_scale()
+                    depth = depth * depth_scale 
+
+                    # Display the circle and its distance
+                    cv2.circle(color_image, center, radius, (0, 255, 0), 2)
+                    #cv2.putText(color_image, f"Distance: {depth:.2f} meters", (int(x) - radius, int(y) - radius - 10),
+                                #cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                    
+
+                    # calculate pixel distance toward the center of image
+                    #M = cv2.moments(contour)
+                    #cx = int(M["m10"] / M["m00"])
+                    #cy = int(M["m01"] / M["m00"])
+
+                    image_width, image_height = color_image.shape[:2]
+                    center_x = image_width // 2
+                    center_y = image_height // 2
+                    #distance = np.sqrt((center_x - int(x)) ** 2 + (center_y - int(y)) ** 2)
+                    x_dist = int(x) - center_x - 85
+                    y_dist = int(y) - center_y + 85
+
+                    cv2.putText(color_image, f"Depth: {depth:.2f}, Drift X: {x_dist:.2f}, Drift Y: {y_dist:.2f}", (int(x) - radius, int(y) - radius - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                    
+
+                    # update required data
+                    x_drift = x_dist
+                    y_drift = y_dist
+                    depth_dist = depth
+
+            if cv2.countNonZero(yel_mask) > 0:
+                detect_state = True
+            else:
+                detect_state = False
+            
+            # Display the color image with detected circles and distances
+            cv2.imshow("Color Image", color_image)
+            cv2.waitKey(1)
+
+    finally:
+        pipeline.stop()
+        cv2.destroyAllWindows()
+
+# determine the robot current state
+def current_state():
+    if not detect_state:
+        return "search"
+    else:
+        if(depth_dist <= 0.3 and min_val <= 0.5):
+            return "collide"
+        elif(min_val <= 0.1):
+            return "collide"
+        elif(0.3 < depth_dist and depth_dist < 1):
+            return "follow"
+        else:
+            return 'chase'
+            
+def scan_callback(scan_data):
+    global min_val
+
+    desire_dist_to_wall = 0.5
+    desire_forward_dist = 0.4
+
+    ranges = scan_data.ranges
+    min_val = min(ranges)
+    min_idx = ranges.index(min_val)
+
+    # calculate the theta difference to the desire theta (radian)
+    ang_to_wall = min_idx * scan_data.angle_increment
+    ang_diff_to_wall = 2 * math.pi - ang_to_wall
+
+    # distance to the wall minus the desire distance between wall and robot
+    dist_to_wall_with_gap = min_val - desire_dist_to_wall
+    # desire angle
+    desire_theta = math.atan2(desire_forward_dist, dist_to_wall_with_gap)
+    # angle error need to be correct
+    err_theta = abs(ang_diff_to_wall - desire_theta)
+
+    if(err_theta > math.pi):
+        err_theta = 2 * math.pi - err_theta
+    desire_theta = desire_theta
+
+
+# return linear velocity and angular velocity for robot controling
+def controller():
+    # check if rotation is required
+    state = current_state()
+    print(state)
+    if state == "search":
+        return 0.0, 0.0, 0.0, 2.0
+    elif state == "collide":
+        return 0.0, 0.0, 0.0, 0.0
+
+    elif(abs(x_drift) >= 80):
+        if x_drift < 0:     # rotate right
+            print("rotate right")
+            return 0.0, 0.0, 0.0, 1.0
+        else:               # rotate left
+            print("rotate left")
+            return 0.0, 0.0, 0.0, -1.0
+    else:
+        if(state == "chase"):
+            return 0.0, 2.0, 0.0, 0.0
+        else:
+            return 0.0, 1.5, 0.0, 0.0
+    
+
+
 def vels(speed, turn):
     return "currently:\tspeed %s\tturn %s " % (speed,turn)
     
@@ -99,7 +275,7 @@ def vels(speed, turn):
 if __name__ == "__main__":
     rospy.init_node('follow_robot')
     speed = 1.0
-    turn = 3.0
+    turn = 2.0
     
     TwistMsg = Pose2D
 
@@ -108,16 +284,17 @@ if __name__ == "__main__":
     x = 0.0
     y = 0.0
     z = 0.0
-    th = -1.0
+    th = 0.0
 
+    rospy.Subscriber('/scan', LaserScan, scan_callback)
     try:
         pub_thread.wait_for_subscribers()
         pub_thread.update(0,0,0,0,0,0)
         pub_thread.start()
 
         input("Press Enter to Continue\n")
-        start_time = time.time()
-        while(time.time() - start_time < 5):
+        while(1):
+            x, y, z, th = controller()
             pub_thread.update(x, y, z, th, speed, turn)
 
     except Exception as e:
