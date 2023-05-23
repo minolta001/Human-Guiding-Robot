@@ -304,8 +304,8 @@ def vels(speed, turn):
 if __name__ == "__main__":
     
     rospy.init_node('follow_robot')
-    speed = 1.0
-    turn = 2.0
+    speed = 0.5
+    turn = 0.8
     
     TwistMsg = Pose2D
 
@@ -329,13 +329,20 @@ if __name__ == "__main__":
         while(1):
             x, y, z, th, state = controller()
             if state != "search":   # not search
-                pub_thread.update(x, y, z, th, speed, turn)
-            else:
+
+                #pub_thread.update(x, y, z, th, speed, turn)
+                continue
+
+            else:   # search state
                 start_time = time.time()
                 while(time.time() - start_time < 5):
-                    pub_thread.update(x, y, z, th, speed, turn)
+                    pub_thread.update(x, y, z, th, speed, turn)     # turn right
                 if(current_state() == "search"):
                     start_time = time.time()
+                    while(time.time() - start_time < 5):
+                        pub_thread.update(0.0, 0.0, 0,0, -2.0, speed, turn)
+
+                    start_time = time.time() 
                     while(time.time() - start_time < 5):
                         if(front_min >= 1):
                             l_or_right = turn_left_or_right(desire_theta, ang_diff_to_wall)
