@@ -1,0 +1,13 @@
+<launch>
+    <!-- Transformation Configuration-->
+
+    <!-- hector mapping -->
+    <include file="$(find hector_mapping)/launch/mapping_default.launch" />
+    
+    <!-- Odometry -->
+    <remap from="scanmatch_odom" to="odom" />
+
+    <!-- Map -->
+    <node name="map_server" pkg="map_server" type="map_server" args="/catkin_ws/src/rospackage/lib_map.yaml" />
+
+</launch>

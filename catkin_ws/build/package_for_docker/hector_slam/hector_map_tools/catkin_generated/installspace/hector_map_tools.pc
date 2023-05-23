@@ -1,0 +1,8 @@
+prefix=/home/lichen_ubuntu_t480/OneDrive_minolta001@gmail.com/UmassAmherst/2023_Spring/COMP_603/final_proj/Human-Guiding-Robot/catkin_ws/install
+
+Name: hector_map_tools
+Description: Description of hector_map_tools
+Version: 0.5.2
+Cflags: -I${prefix}/include -I/usr/include/eigen3
+Libs: -L${prefix}/lib 
+Requires: nav_msgs
