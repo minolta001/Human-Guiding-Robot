@@ -1,10 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from __future__ import print_function
 
 import threading
 
-import roslib; roslib.load_manifest('teleop_twist_keyboard')
+import roslib; roslib.load_manifest('follow_rb')
 import rospy
 
 from geometry_msgs.msg import Pose2D
@@ -26,7 +26,7 @@ TwistMsg = Pose2D
 class Robot(threading.Thread):
     def __init__(self, rate):
         super(Robot, self).__init__()
-        self.publisher = rospy.Publisher('/drive_cmd', TwistMsg, queue_size=5)
+        self.publisher = rospy.Publisher('/drive_cmd', TwistMsg, queue_size=1)
         self.x = 0.0
         self.y = 0.0
         self.z = 0.0
@@ -56,14 +56,22 @@ class Robot(threading.Thread):
         self.th = th
         self.speed = speed
         self.turn = turn
+
         # Notify publish thread that we have a new message.
         self.condition.notify()
         self.condition.release()
+
+
+    def stop(self):
+        self.done = True
+        self.update(0,0,0,0,0,0)
+        self.join()
     
     def run(self):
         twist_msg = TwistMsg()
-        twist = twist_msg.twist
+        twist = twist_msg
         
+
         while not self.done:
             self.condition.acquire()
 
@@ -89,25 +97,25 @@ def vels(speed, turn):
     
 
 if __name__ == "__main__":
-    input("Press Enter to Continue...\n")
-
-    rospy.init_node('teleop_twist_keyboard')
-    speed = 2.0
-    turn = 2.0
+    rospy.init_node('follow_robot')
+    speed = 1.0
+    turn = 3.0
     
     TwistMsg = Pose2D
 
     pub_thread = Robot(0.0)
 
-    x = 0
-    y = 0
-    z = 0
-    th = 0
+    x = 0.0
+    y = 0.0
+    z = 0.0
+    th = -1.0
 
     try:
-        pub_thread.update(x, y, z, th, speed, turn)
+        pub_thread.wait_for_subscribers()
+        pub_thread.update(0,0,0,0,0,0)
+        pub_thread.start()
 
-
+        input("Press Enter to Continue\n")
         start_time = time.time()
         while(time.time() - start_time < 5):
             pub_thread.update(x, y, z, th, speed, turn)
@@ -117,3 +125,4 @@ if __name__ == "__main__":
     
     finally:
         pub_thread.stop()
+        pub_thread.done = True
