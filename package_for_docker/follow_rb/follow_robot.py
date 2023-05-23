@@ -26,7 +26,10 @@ else:
     import termios
     import tty
 
-min_val = -np.inf  # minimum reading value from scaner
+min_val = np.inf  # minimum reading value from scaner
+front_min = np.inf
+desire_theta = -np.inf
+ang_diff_to_wall = -np.inf
 
 depth_dist = np.inf
 x_drift = np.inf
@@ -190,6 +193,8 @@ def vision():
                     y_drift = y_dist
                     depth_dist = depth
 
+                    print(depth_dist, x_drift, y_drift)
+
             if cv2.countNonZero(yel_mask) > 0:
                 detect_state = True
             else:
@@ -218,7 +223,7 @@ def current_state():
             return 'chase'
             
 def scan_callback(scan_data):
-    global min_val
+    global min_val, desire_theta, ang_diff_to_wall, front_min
 
     desire_dist_to_wall = 0.5
     desire_forward_dist = 0.4
@@ -226,6 +231,12 @@ def scan_callback(scan_data):
     ranges = scan_data.ranges
     min_val = min(ranges)
     min_idx = ranges.index(min_val)
+
+    front10 = ranges[:10]
+    back10 = ranges[-10:]
+    
+    front_ranges = front10 + back10 # the scan readings from heading 30 degree
+    front_min = min(front_ranges)
 
     # calculate the theta difference to the desire theta (radian)
     ang_to_wall = min_idx * scan_data.angle_increment
@@ -240,7 +251,25 @@ def scan_callback(scan_data):
 
     if(err_theta > math.pi):
         err_theta = 2 * math.pi - err_theta
-    desire_theta = desire_theta
+
+def turn_left_or_right(desire_theta, ang_diff_to_wall):
+    if(desire_theta < 0):
+        desire_theta = 2 * math.pi + desire_theta
+    
+    if(ang_diff_to_wall < 0):
+        ang_diff_to_wall = 2 * math.pi + ang_diff_to_wall
+    
+    # several scenarios are discussed here. A better desciption should be added
+    if(abs(ang_diff_to_wall - desire_theta) < (math.pi / 2)):   # faster to approach desire theta line on the right side, or on the left side? -> right side
+        if(ang_diff_to_wall - desire_theta > 0):    # desire theta larger or ang_diff larger?  -> ang_diff_to_wall larger, so turn right
+            return -1
+        else:
+            return 1                                # ang_diff_to_wall smaller. The closest desire_theta line on robot left side. Turn left.
+    else:                                                       # faster to approach desire theta line on the left side
+        if(ang_diff_to_wall - desire_theta > 0):    # ang_diff_to_wall larger, so turn left
+            return 1
+        else:
+            return -1                               # ang_diff_to_wall smaller, turn right
 
 
 # return linear velocity and angular velocity for robot controling
@@ -249,22 +278,22 @@ def controller():
     state = current_state()
     print(state)
     if state == "search":
-        return 0.0, 0.0, 0.0, 2.0
+        return 0.0, 0.0, 0.0, 2.0, state
     elif state == "collide":
-        return 0.0, 0.0, 0.0, 0.0
+        return 0.0, 0.0, 0.0, 0.0, state
 
     elif(abs(x_drift) >= 80):
         if x_drift < 0:     # rotate right
             print("rotate right")
-            return 0.0, 0.0, 0.0, 1.0
+            return 0.0, 0.0, 0.0, -1.0, state
         else:               # rotate left
             print("rotate left")
-            return 0.0, 0.0, 0.0, -1.0
+            return 0.0, 0.0, 0.0, 1.0, state
     else:
         if(state == "chase"):
-            return 0.0, 2.0, 0.0, 0.0
+            return 0.0, 2.0, 0.0, 0.0, state
         else:
-            return 0.0, 1.5, 0.0, 0.0
+            return 0.0, 1.5, 0.0, 0.0, state
     
 
 
@@ -273,6 +302,7 @@ def vels(speed, turn):
     
 
 if __name__ == "__main__":
+    
     rospy.init_node('follow_robot')
     speed = 1.0
     turn = 2.0
@@ -288,18 +318,35 @@ if __name__ == "__main__":
 
     rospy.Subscriber('/scan', LaserScan, scan_callback)
     try:
+        vision_thread = threading.Thread(target=vision)
+        vision_thread.start()
+   
         pub_thread.wait_for_subscribers()
         pub_thread.update(0,0,0,0,0,0)
         pub_thread.start()
 
         input("Press Enter to Continue\n")
         while(1):
-            x, y, z, th = controller()
-            pub_thread.update(x, y, z, th, speed, turn)
+            x, y, z, th, state = controller()
+            if state != "search":   # not search
+                pub_thread.update(x, y, z, th, speed, turn)
+            else:
+                start_time = time.time()
+                while(time.time() - start_time < 5):
+                    pub_thread.update(x, y, z, th, speed, turn)
+                if(current_state() == "search"):
+                    start_time = time.time()
+                    while(time.time() - start_time < 5):
+                        if(front_min >= 1):
+                            l_or_right = turn_left_or_right(desire_theta, ang_diff_to_wall)
+                            pub_thread.update(0, 0.5, 0, l_or_right * 1.0, speed, turn)
+                        
+
 
     except Exception as e:
         print(e)
     
     finally:
         pub_thread.stop()
+        vision_thread.stop()
         pub_thread.done = True
