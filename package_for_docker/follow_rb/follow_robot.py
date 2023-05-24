@@ -38,7 +38,7 @@ detect_state = False    # if detect a target color, True. Else, False
 
 TwistMsg = Pose2D
 
-states = ['collide', 'follow', 'search', 'chase', 'callibrate']
+states = ['collide', 'follow', 'search', 'chase', 'calibrate']
 
 class Robot(threading.Thread):
     def __init__(self, rate):
@@ -214,10 +214,12 @@ def current_state():
         if(abs(x_drift) >= 100):
             return "callibrate"
 
-        if(depth_dist <= 0.3 and min_val <= 0.5):
+        if(min_val <= 0.2):
             return "collide"
-        elif(min_val <= 0.1):
+    
+        if(front_min <= 0.4):
             return "collide"
+
         elif(0.3 < depth_dist and depth_dist < 1):
             return "follow"
         else:
@@ -282,7 +284,7 @@ def controller():
     elif state == "collide":
         return 0.0, 0.0, 0.0, 0.0, state
 
-    elif(state == "callibrate"):
+    elif(state == "calibrate"):
         return 0.0, 0.0, 0.0, 0.0, state    # calibration might be shaking, so we don't set a single rotate direction
 
     else:
@@ -325,7 +327,7 @@ if __name__ == "__main__":
         while(1):
             x, y, z, th, state = controller()
 
-            if state == "callibrate":
+            if state == "calibrate":
                 print("Callibrating......") 
                 pub_thread.update(0, 0, 0, 0, speed, turn)
                 while(abs(x_drift) >= 50):
@@ -336,6 +338,11 @@ if __name__ == "__main__":
                         print("callibrate left")
                         pub_thread.update(0, 0, 0, 2.0, speed, turn)
                     rospy.sleep(0.02)
+                pub_thread.update(0,0,0,0, speed, turn)
+            
+            
+            elif state == "collide":
+                print("Collide!")
                 pub_thread.update(0,0,0,0, speed, turn)
                     
                 
