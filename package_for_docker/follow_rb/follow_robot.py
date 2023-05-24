@@ -6,12 +6,11 @@ import threading
 
 import roslib; roslib.load_manifest('follow_rb')
 import rospy
-
 from geometry_msgs.msg import Pose2D
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import TwistStamped
 from sensor_msgs.msg import LaserScan
-from std_msgs import Int32
+from std_msgs.msg import Int32
 import sys
 import time
 import numpy as np
@@ -314,7 +313,12 @@ if __name__ == "__main__":
     z = 0.0
     th = 0.0
 
-    rospy.Subscriber('/scan', LaserScan, scan_callback)
+    # subscribe laser scanner
+    rospy.Subscriber('/scan', LaserScan, scan_callback) 
+
+    led_pub = rospy.Publisher('/color_cmd', Int32, queue_size=1)
+    led_msg = Int32()
+
     try:
         vision_thread = threading.Thread(target=vision)
         vision_thread.start()
@@ -328,7 +332,9 @@ if __name__ == "__main__":
             x, y, z, th, state = controller()
 
             if state == "calibrate":
-                #print("Calibrating......") 
+                led_msg = 0x0000FF
+                led_pub.publish(led_msg)
+                #print("Calibrating......")
                 pub_thread.update(0, 0, 0, 0, speed, turn)
                 while(abs(x_drift) >= 200 and detect_state == True):
                     if(x_drift < 0):
@@ -341,13 +347,17 @@ if __name__ == "__main__":
                     rospy.sleep(0.01)
                 pub_thread.update(0,0,0,0, speed, turn)
             
-            
             elif state == "collide":
+                led_msg = 0xFF0000
+                led_pub.publish(led_msg)
+                
                 print("Collide!")
                 pub_thread.update(0,0,0,0, speed, turn)
-                    
                 
             elif state == "search":   # search state
+                led_msg = 0xFFFF00
+                led_pub.publish(led_msg) 
+
                 #print("Searching...")
                 start_time = time.time()
                 #while(time.time() - start_time < 25):
@@ -364,6 +374,8 @@ if __name__ == "__main__":
                 pub_thread.update(0,0,0,0,speed,turn)
 
             else:                   # follow
+                led_msg = 0x00FF00
+                led_pub.publish(led_msg)
                 while(current_state() == "follow"):
                     print("Following...")
                     #pub_thread.update(x, y, z, th, speed, turn)
