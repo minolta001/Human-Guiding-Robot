@@ -16,7 +16,7 @@ import time
 import numpy as np
 import math
 import cv2
-import pyrealsense2 as rs
+import pyrealsense2.pyrealsense2 as rs
 
 from select import select
 
@@ -115,7 +115,6 @@ class Robot(threading.Thread):
 def vision():
     global depth_dist, x_drift, y_drift, detect_state
 
-    rospy.init_node('d435_camera_node', anonymous=True)
     pipeline = rs.pipeline()
     config = rs.config()
     config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 15)
@@ -151,7 +150,7 @@ def vision():
              
             for contour in contours:
                 area = cv2.contourArea(contour)
-                if area > 100:  # Filter small contours
+                if area > 6000:  # Filter small contours
 
                     detect_state = True
 
@@ -193,7 +192,6 @@ def vision():
                     y_drift = y_dist
                     depth_dist = depth
 
-                    print(depth_dist, x_drift, y_drift)
 
             if cv2.countNonZero(yel_mask) > 0:
                 detect_state = True
@@ -201,7 +199,7 @@ def vision():
                 detect_state = False
             
             # Display the color image with detected circles and distances
-            cv2.imshow("Color Image", color_image)
+            # cv2.imshow("Color Image", color_image)
             cv2.waitKey(1)
 
     finally:
@@ -276,18 +274,15 @@ def turn_left_or_right(desire_theta, ang_diff_to_wall):
 def controller():
     # check if rotation is required
     state = current_state()
-    print(state)
     if state == "search":
-        return 0.0, 0.0, 0.0, 2.0, state
+        return 0.0, 0.0, 0.0, -2.0, state
     elif state == "collide":
         return 0.0, 0.0, 0.0, 0.0, state
 
     elif(abs(x_drift) >= 80):
         if x_drift < 0:     # rotate right
-            print("rotate right")
             return 0.0, 0.0, 0.0, -1.0, state
         else:               # rotate left
-            print("rotate left")
             return 0.0, 0.0, 0.0, 1.0, state
     else:
         if(state == "chase"):
@@ -304,8 +299,8 @@ def vels(speed, turn):
 if __name__ == "__main__":
     
     rospy.init_node('follow_robot')
-    speed = 0.5
-    turn = 0.8
+    speed = 1.0
+    turn = 1.5
     
     TwistMsg = Pose2D
 
@@ -331,24 +326,46 @@ if __name__ == "__main__":
             if state != "search":   # not search
 
                 #pub_thread.update(x, y, z, th, speed, turn)
-                continue
+                pub_thread.update(0,0,0,0,0,0)
 
             else:   # search state
+                print("Searching...")
                 start_time = time.time()
-                while(time.time() - start_time < 5):
-                    pub_thread.update(x, y, z, th, speed, turn)     # turn right
-                if(current_state() == "search"):
-                    start_time = time.time()
-                    while(time.time() - start_time < 5):
-                        pub_thread.update(0.0, 0.0, 0,0, -2.0, speed, turn)
+                #while(time.time() - start_time < 25):
 
+                while(detect_state != True):
+                    pub_thread.update(0, 0, 0, -2.0, speed, turn)     # turn right
+                    if(detect_state):
+                        break
+
+                start_time = time.time()
+                while(time.time() - start_time < 2):
+                    pub_thread.update(0,0,0,0,speed,turn)
+
+                
+                '''
+                if(current_state() == "search"):                # still searching, turn left
                     start_time = time.time() 
+                    print("left")
+                    while(time.time() - start_time < 25):
+                        pub_thread.update(0.0, 0.0, 0.0, 2.0, speed, turn)
+                        #if(detect_state):
+                            #break
+                    while(time.time() - start_time < 27):
+                        pub_thread.update(0,0,0,0,0,0)
+                     
+                    start_time = time.time()                    # go straight, TODO: stanley?
+                    print("straight")
                     while(time.time() - start_time < 5):
                         if(front_min >= 1):
                             l_or_right = turn_left_or_right(desire_theta, ang_diff_to_wall)
-                            pub_thread.update(0, 0.5, 0, l_or_right * 1.0, speed, turn)
-                        
+                            pub_thread.update(0, 1.0, 0, 0, speed, turn)
 
+                        #if(detect_state or front_min < 1):
+                            #break
+                    while(time.time() - start_time < 7):
+                        pub_thread.update(0, 0, 0, 0, speed, turn)
+                '''
 
     except Exception as e:
         print(e)
