@@ -15,5 +15,6 @@ def scan_callback(scan_data):
 
     print(min_val, front_min, front_min_idx)
 
-rospy.init_node("scan_test")
-rospy.Subscriber('/scan', LaserScan, scan_callback)
+while(1):
+    rospy.init_node("scan_test")
+    rospy.Subscriber('/scan', LaserScan, scan_callback)
