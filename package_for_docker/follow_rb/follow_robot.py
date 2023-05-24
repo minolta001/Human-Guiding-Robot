@@ -210,6 +210,7 @@ def vision():
 
 # determine the robot current state
 def current_state():
+    print(min_val)
     if not detect_state:
         return "search"
     else:
@@ -332,7 +333,7 @@ if __name__ == "__main__":
             x, y, z, th, state = controller()
 
             if state == "calibrate":
-                print("Calibrating......") 
+                #print("Calibrating......") 
                 pub_thread.update(0, 0, 0, 0, speed, turn)
                 while(abs(x_drift) >= 50):
                     if(x_drift < 0):
@@ -344,12 +345,12 @@ if __name__ == "__main__":
             
             
             elif state == "collide":
-                print("Collide!")
+                #print("Collide!")
                 pub_thread.update(0,0,0,0, speed, turn)
                     
                 
             elif state == "search":   # search state
-                print("Searching...")
+                #print("Searching...")
                 start_time = time.time()
                 #while(time.time() - start_time < 25):
 
@@ -388,7 +389,7 @@ if __name__ == "__main__":
                         pub_thread.update(0, 0, 0, 0, speed, turn)
                 ''' 
             else:
-                print("Others")
+                #print("Others")
                 pub_thread.update(0,0,0,0,0,0)
 
             rospy.sleep(0.02)
