@@ -138,7 +138,7 @@ def vision():
             hsv_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2HSV)
 
             # Define lower and upper bounds for yellow color
-            lower_red = np.array([20, 100, 100])
+            lower_red = np.array([20, 120, 120])
             upper_red = np.array([40, 255, 255])
 
             yel_mask = cv2.inRange(hsv_image, lower_red, upper_red)
@@ -152,7 +152,7 @@ def vision():
              
             for contour in contours:
                 area = cv2.contourArea(contour)
-                if area > 2000:  # Filter small contours
+                if area > 1500:  # Filter small contours
 
                     detect_state = True
 
@@ -336,7 +336,7 @@ if __name__ == "__main__":
                 led_pub.publish(led_msg)
                 #print("Calibrating......")
                 #pub_thread.update(0, 0, 0, 0, speed, turn)
-                while(abs(x_drift) >= 200 and detect_state == True):
+                while(abs(x_drift) >= 180 and detect_state == True):
                     if(x_drift < 0):
                         print("Calibrating Right...")
                         pub_thread.update(0, 0, 0, -2.0, speed, turn)
@@ -365,7 +365,7 @@ if __name__ == "__main__":
                 while(detect_state != True):
                     print("Searching...")
                     pub_thread.update(x, y, z, th, speed, turn)     # turn right, th = -2.0
-                    rospy.sleep(0.02)
+                    rospy.sleep(0.01)
                     if(detect_state):
                         break
 
@@ -379,8 +379,8 @@ if __name__ == "__main__":
                 while(current_state() == "follow"):
                     print("Following...")
                     #pub_thread.update(x, y, z, th, speed, turn)
-                    pub_thread.update(0, 1.5, 0, 0, speed, turn)
-                    rospy.sleep(0.02)
+                    pub_thread.update(0, 2.0, 0, 0, speed, turn)
+                    rospy.sleep(0.01)
                 
                 '''
                 if(current_state() == "search"):                # still searching, turn left
