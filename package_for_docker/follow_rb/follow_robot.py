@@ -38,7 +38,7 @@ detect_state = False    # if detect a target color, True. Else, False
 
 TwistMsg = Pose2D
 
-states = ['collide', 'follow', 'search', 'chase']
+states = ['collide', 'follow', 'search', 'chase', 'callibrate']
 
 class Robot(threading.Thread):
     def __init__(self, rate):
@@ -211,6 +211,9 @@ def current_state():
     if not detect_state:
         return "search"
     else:
+        if(abs(x_drift) >= 100):
+            return "callibrate"
+
         if(depth_dist <= 0.3 and min_val <= 0.5):
             return "collide"
         elif(min_val <= 0.1):
@@ -279,11 +282,9 @@ def controller():
     elif state == "collide":
         return 0.0, 0.0, 0.0, 0.0, state
 
-    elif(abs(x_drift) >= 80):
-        if x_drift < 0:     # rotate right
-            return 0.0, 0.0, 0.0, -1.0, state
-        else:               # rotate left
-            return 0.0, 0.0, 0.0, 1.0, state
+    elif(state == "callibrate"):
+        return 0.0, 0.0, 0.0, 0.0, state    # calibration might be shaking, so we don't set a single rotate direction
+
     else:
         if(state == "chase"):
             return 0.0, 2.0, 0.0, 0.0, state
@@ -323,24 +324,34 @@ if __name__ == "__main__":
         input("Press Enter to Continue\n")
         while(1):
             x, y, z, th, state = controller()
-            if state != "search":   # not search
 
-                #pub_thread.update(x, y, z, th, speed, turn)
-                pub_thread.update(0,0,0,0,0,0)
-
-            else:   # search state
+            if state == "callibrate":
+                print("Callibrating......") 
+                pub_thread.update(0, 0, 0, 0, speed, turn)
+                while(abs(x_drift) >= 100):
+                    if(x_drift > 0):
+                        pub_thread.update(0, 0, 0, -1.0, speed, turn)
+                    else:
+                        pub_thread.update(0, 0, 0, -1.0, speed, turn)
+                    rospy.sleep(0.1)
+                pub_thread.update(0,0,0,0, speed, turn)
+                    
+                
+            elif state == "search":   # search state
                 print("Searching...")
                 start_time = time.time()
                 #while(time.time() - start_time < 25):
 
                 while(detect_state != True):
-                    pub_thread.update(0, 0, 0, -2.0, speed, turn)     # turn right
+                    pub_thread.update(x, y, z, th, speed, turn)     # turn right, th = -2.0
+                    rospy.sleep(0.1)
                     if(detect_state):
                         break
 
                 start_time = time.time()
                 while(time.time() - start_time < 2):
                     pub_thread.update(0,0,0,0,speed,turn)
+                    rospy.sleep(0.1)
 
                 
                 '''
@@ -365,7 +376,10 @@ if __name__ == "__main__":
                             #break
                     while(time.time() - start_time < 7):
                         pub_thread.update(0, 0, 0, 0, speed, turn)
-                '''
+                ''' 
+            else:
+                print("Others")
+                pub_thread.update(0,0,0,0,0,0)
 
     except Exception as e:
         print(e)
