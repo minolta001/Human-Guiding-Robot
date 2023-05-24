@@ -327,15 +327,20 @@ if __name__ == "__main__":
             x, y, z, th, state = controller()
 
             if state == "calibrate":
-                print("Calibrating......") 
+                #print("Calibrating......") 
                 pub_thread.update(0, 0, 0, 0, speed, turn)
-                while(abs(x_drift) >= 50):
+                while(abs(x_drift) >= 100):
                     if(x_drift < 0):
+                        print("Calibrating Right.")
+                        print("Calibrating Right..")
                         print("Calibrating Right...")
                         pub_thread.update(0, 0, 0, -2.0, speed, turn)
                     else:
+                        print("Calibrating Left.")
+                        print("Calibrating Left..")
                         print("Calibrating Left...")
-                        pub_thread.update(0, 0, 0, 2.0, speed, turn)
+                        
+                        pub_thread.update(0, 0, 0, 1.0, speed, turn)
                     rospy.sleep(0.02)
                 pub_thread.update(0,0,0,0, speed, turn)
             
@@ -346,11 +351,12 @@ if __name__ == "__main__":
                     
                 
             elif state == "search":   # search state
-                print("Searching...")
+                #print("Searching...")
                 start_time = time.time()
                 #while(time.time() - start_time < 25):
 
                 while(detect_state != True):
+                    print("Searching...")
                     pub_thread.update(x, y, z, th, speed, turn)     # turn right, th = -2.0
                     rospy.sleep(0.02)
                     if(detect_state):
@@ -362,7 +368,9 @@ if __name__ == "__main__":
 
             else:                   # follow
                 while(current_state() == "follow"):
-                    pub_thread.update(x, y, z, th, speed, turn)
+                    print("Following...")
+                    #pub_thread.update(x, y, z, th, speed, turn)
+                    pub_thread.update(0, 1.5, 0, 0, speed, turn)
                     rospy.sleep(0.02)
                 
                 '''
