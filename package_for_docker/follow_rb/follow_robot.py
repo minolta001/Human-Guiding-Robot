@@ -283,7 +283,7 @@ def controller():
     # check if rotation is required
     state = current_state()
     if state == "search":
-        return 0.0, 0.0, 0.0, -2.5, state
+        return 0.0, 0.0, 0.0, -3.0, state
     elif state == "collide":
         return 0.0, 0.0, 0.0, 0.0, state
 
@@ -335,15 +335,15 @@ if __name__ == "__main__":
                 led_msg = 0x0000FF
                 led_pub.publish(led_msg)
                 #print("Calibrating......")
-                pub_thread.update(0, 0, 0, 0, speed, turn)
+                #pub_thread.update(0, 0, 0, 0, speed, turn)
                 while(abs(x_drift) >= 200 and detect_state == True):
                     if(x_drift < 0):
                         print("Calibrating Right...")
-                        pub_thread.update(0, 0, 0, -1.0, speed, turn)
+                        pub_thread.update(0, 0, 0, -2.0, speed, turn)
                     else:
                         print("Calibrating Left...")
                         
-                        pub_thread.update(0, 0, 0, 1.0, speed, turn)
+                        pub_thread.update(0, 0, 0, 2.0, speed, turn)
                     rospy.sleep(0.01)
                 pub_thread.update(0,0,0,0, speed, turn)
             
