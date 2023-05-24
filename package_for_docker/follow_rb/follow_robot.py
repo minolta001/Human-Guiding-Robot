@@ -152,7 +152,7 @@ def vision():
              
             for contour in contours:
                 area = cv2.contourArea(contour)
-                if area > 6000:  # Filter small contours
+                if area > 2000:  # Filter small contours
 
                     detect_state = True
 
@@ -210,17 +210,16 @@ def vision():
 
 # determine the robot current state
 def current_state():
-    print(min_val)
     if not detect_state:
         return "search"
     else:
         if(abs(x_drift) >= 100):
-            return "callibrate"
+            return "calibrate"
 
         if(min_val <= 0.3):
             return "collide"
     
-        if(front_min <= 0.4):
+        if(front_min <= 0.3):
             return "collide"
 
         elif(0.3 < depth_dist and depth_dist < 1):
@@ -333,12 +332,14 @@ if __name__ == "__main__":
             x, y, z, th, state = controller()
 
             if state == "calibrate":
-                #print("Calibrating......") 
+                print("Calibrating......") 
                 pub_thread.update(0, 0, 0, 0, speed, turn)
                 while(abs(x_drift) >= 50):
                     if(x_drift < 0):
+                        print("Calibrating Right...")
                         pub_thread.update(0, 0, 0, -2.0, speed, turn)
                     else:
+                        print("Calibrating Left...")
                         pub_thread.update(0, 0, 0, 2.0, speed, turn)
                     rospy.sleep(0.02)
                 pub_thread.update(0,0,0,0, speed, turn)
@@ -350,7 +351,7 @@ if __name__ == "__main__":
                     
                 
             elif state == "search":   # search state
-                #print("Searching...")
+                print("Searching...")
                 start_time = time.time()
                 #while(time.time() - start_time < 25):
 
