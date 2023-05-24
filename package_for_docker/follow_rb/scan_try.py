@@ -3,8 +3,8 @@ from sensor_msgs.msg import LaserScan
 
 def scan_callback(scan_data):
     ranges = scan_data.ranges
-    min_val = min(ranges)
-    min_idx = ranges.index(min_val)
+    min_val = min(scan_data.ranges)
+    min_idx = scan_data.ranges.index(min_val)
 
     front10 = ranges[:10]
     back10 = ranges[-10:]
@@ -12,8 +12,9 @@ def scan_callback(scan_data):
     front_min = min(front_ranges)
     front_min_idx = front_ranges.index(front_min)
 
+    print(scan_data.angle_min)
 
-    print(min_val, front_min, front_min_idx)
+
 
 while(1):
     rospy.init_node("scan_test")
