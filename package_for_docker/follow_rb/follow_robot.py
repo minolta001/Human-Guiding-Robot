@@ -266,7 +266,7 @@ def current_state():
     if not detect_state:
         return "search"
     else:
-        if(abs(x_drift) >= 100):
+        if(abs(x_drift) >= 200):
             return "calibrate"
 
         if(min_val <= 0.3):
@@ -283,7 +283,7 @@ def controller():
     # check if rotation is required
     state = current_state()
     if state == "search":
-        return 0.0, 0.0, 0.0, -2.0, state
+        return 0.0, 0.0, 0.0, -2.5, state
     elif state == "collide":
         return 0.0, 0.0, 0.0, 0.0, state
 
@@ -329,24 +329,20 @@ if __name__ == "__main__":
             if state == "calibrate":
                 #print("Calibrating......") 
                 pub_thread.update(0, 0, 0, 0, speed, turn)
-                while(abs(x_drift) >= 100):
+                while(abs(x_drift) >= 200 and detect_state == True):
                     if(x_drift < 0):
-                        print("Calibrating Right.")
-                        print("Calibrating Right..")
                         print("Calibrating Right...")
-                        pub_thread.update(0, 0, 0, -2.0, speed, turn)
+                        pub_thread.update(0, 0, 0, -1.0, speed, turn)
                     else:
-                        print("Calibrating Left.")
-                        print("Calibrating Left..")
                         print("Calibrating Left...")
                         
                         pub_thread.update(0, 0, 0, 1.0, speed, turn)
-                    rospy.sleep(0.02)
+                    rospy.sleep(0.01)
                 pub_thread.update(0,0,0,0, speed, turn)
             
             
             elif state == "collide":
-                #print("Collide!")
+                print("Collide!")
                 pub_thread.update(0,0,0,0, speed, turn)
                     
                 
