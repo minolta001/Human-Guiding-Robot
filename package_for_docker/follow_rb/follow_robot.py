@@ -11,6 +11,7 @@ from geometry_msgs.msg import Pose2D
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import TwistStamped
 from sensor_msgs.msg import LaserScan
+from std_msgs import Int32
 import sys
 import time
 import numpy as np
