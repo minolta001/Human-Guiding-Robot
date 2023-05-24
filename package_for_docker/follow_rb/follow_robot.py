@@ -38,7 +38,7 @@ detect_state = False    # if detect a target color, True. Else, False
 
 TwistMsg = Pose2D
 
-states = ['collide', 'follow', 'search', 'chase', 'calibrate']
+states = ['collide', 'follow', 'search', 'calibrate']
 
 
 
@@ -208,25 +208,7 @@ def vision():
         pipeline.stop()
         #cv2.destroyAllWindows()
 
-# determine the robot current state
-def current_state():
-    if not detect_state:
-        return "search"
-    else:
-        if(abs(x_drift) >= 100):
-            return "calibrate"
-
-        if(min_val <= 0.3):
-            return "collide"
-    
-        if(front_min <= 0.3):
-            return "collide"
-
-        elif(0.3 < depth_dist and depth_dist < 1):
-            return "follow"
-        else:
-            return 'chase'
-        
+       
 def scan_callback(scan_data):
     global min_val, desire_theta, ang_diff_to_wall, front_min
 
@@ -279,6 +261,23 @@ def turn_left_or_right(desire_theta, ang_diff_to_wall):
             return -1                               # ang_diff_to_wall smaller, turn right
 
 
+# determine the robot current state
+def current_state():
+    if not detect_state:
+        return "search"
+    else:
+        if(abs(x_drift) >= 100):
+            return "calibrate"
+
+        if(min_val <= 0.3):
+            return "collide"
+    
+        if(front_min <= 0.3):
+            return "collide"
+        else:
+            return 'follow'
+ 
+
 # return linear velocity and angular velocity for robot controling
 def controller():
     # check if rotation is required
@@ -290,12 +289,8 @@ def controller():
 
     elif(state == "calibrate"):
         return 0.0, 0.0, 0.0, 0.0, state    # calibration might be shaking, so we don't set a single rotate direction
-
     else:
-        if(state == "chase"):
-            return 0.0, 2.0, 0.0, 0.0, state
-        else:
-            return 0.0, 1.5, 0.0, 0.0, state
+        return 0.0, 1.5, 0.0, 0.0, state
     
 
 
@@ -365,6 +360,10 @@ if __name__ == "__main__":
                 #while(time.time() - start_time < 2):
                 pub_thread.update(0,0,0,0,speed,turn)
 
+            else:                   # follow
+                while(current_state() == "follow"):
+                    pub_thread.update(x, y, z, th, speed, turn)
+                    rospy.sleep(0.02)
                 
                 '''
                 if(current_state() == "search"):                # still searching, turn left
@@ -389,10 +388,6 @@ if __name__ == "__main__":
                     while(time.time() - start_time < 7):
                         pub_thread.update(0, 0, 0, 0, speed, turn)
                 ''' 
-            else:
-                #print("Others")
-                pub_thread.update(0,0,0,0,0,0)
-
             rospy.sleep(0.02)
 
     except Exception as e:
