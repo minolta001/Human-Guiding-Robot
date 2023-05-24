@@ -328,12 +328,14 @@ if __name__ == "__main__":
             if state == "callibrate":
                 print("Callibrating......") 
                 pub_thread.update(0, 0, 0, 0, speed, turn)
-                while(abs(x_drift) >= 100):
-                    if(x_drift > 0):
-                        pub_thread.update(0, 0, 0, -1.0, speed, turn)
+                while(abs(x_drift) >= 50):
+                    if(x_drift < 0):
+                        print("callibrate right")
+                        pub_thread.update(0, 0, 0, -2.0, speed, turn)
                     else:
-                        pub_thread.update(0, 0, 0, -1.0, speed, turn)
-                    rospy.sleep(0.1)
+                        print("callibrate left")
+                        pub_thread.update(0, 0, 0, 2.0, speed, turn)
+                    rospy.sleep(0.02)
                 pub_thread.update(0,0,0,0, speed, turn)
                     
                 
@@ -344,14 +346,13 @@ if __name__ == "__main__":
 
                 while(detect_state != True):
                     pub_thread.update(x, y, z, th, speed, turn)     # turn right, th = -2.0
-                    rospy.sleep(0.1)
+                    rospy.sleep(0.02)
                     if(detect_state):
                         break
 
                 start_time = time.time()
-                while(time.time() - start_time < 2):
-                    pub_thread.update(0,0,0,0,speed,turn)
-                    rospy.sleep(0.1)
+                #while(time.time() - start_time < 2):
+                pub_thread.update(0,0,0,0,speed,turn)
 
                 
                 '''
@@ -380,6 +381,8 @@ if __name__ == "__main__":
             else:
                 print("Others")
                 pub_thread.update(0,0,0,0,0,0)
+
+            rospy.sleep(0.02)
 
     except Exception as e:
         print(e)
