@@ -216,10 +216,10 @@ def current_state():
         if(abs(x_drift) >= 100):
             return "callibrate"
 
-        if(min_val <= 0.4):
+        if(min_val <= 0.3):
             return "collide"
     
-        if(front_min <= 0.6):
+        if(front_min <= 0.4):
             return "collide"
 
         elif(0.3 < depth_dist and depth_dist < 1):
@@ -230,11 +230,13 @@ def current_state():
 def scan_callback(scan_data):
     global min_val, desire_theta, ang_diff_to_wall, front_min
 
+
     desire_dist_to_wall = 0.5
     desire_forward_dist = 0.4
 
     ranges = scan_data.ranges
     min_val = min(ranges)
+
     min_idx = ranges.index(min_val)
 
     front10 = ranges[:10]
@@ -327,7 +329,6 @@ if __name__ == "__main__":
 
         input("Press Enter to Continue\n")
         while(1):
-            print(min_val)
             x, y, z, th, state = controller()
 
             if state == "calibrate":
