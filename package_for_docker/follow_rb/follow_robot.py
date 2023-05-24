@@ -40,6 +40,8 @@ TwistMsg = Pose2D
 
 states = ['collide', 'follow', 'search', 'chase', 'calibrate']
 
+
+
 class Robot(threading.Thread):
     def __init__(self, rate):
         super(Robot, self).__init__()
@@ -204,7 +206,7 @@ def vision():
 
     finally:
         pipeline.stop()
-        cv2.destroyAllWindows()
+        #cv2.destroyAllWindows()
 
 # determine the robot current state
 def current_state():
@@ -214,17 +216,17 @@ def current_state():
         if(abs(x_drift) >= 100):
             return "callibrate"
 
-        if(min_val <= 0.2):
+        if(min_val <= 0.4):
             return "collide"
     
-        if(front_min <= 0.4):
+        if(front_min <= 0.6):
             return "collide"
 
         elif(0.3 < depth_dist and depth_dist < 1):
             return "follow"
         else:
             return 'chase'
-            
+        
 def scan_callback(scan_data):
     global min_val, desire_theta, ang_diff_to_wall, front_min
 
@@ -325,17 +327,16 @@ if __name__ == "__main__":
 
         input("Press Enter to Continue\n")
         while(1):
+            print(min_val)
             x, y, z, th, state = controller()
 
             if state == "calibrate":
-                print("Callibrating......") 
+                print("Calibrating......") 
                 pub_thread.update(0, 0, 0, 0, speed, turn)
                 while(abs(x_drift) >= 50):
                     if(x_drift < 0):
-                        print("callibrate right")
                         pub_thread.update(0, 0, 0, -2.0, speed, turn)
                     else:
-                        print("callibrate left")
                         pub_thread.update(0, 0, 0, 2.0, speed, turn)
                     rospy.sleep(0.02)
                 pub_thread.update(0,0,0,0, speed, turn)
